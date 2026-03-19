@@ -4,7 +4,9 @@ import router from "./index.route.ts"
 
 const app = express()
 
-app.use(express.json())
+app.use(express.json({
+    limit: "50mb"
+}))
 
 app.listen(process.env["PORT"] || 3000, () => {
     console.log("Server is running on port", process.env["PORT"] || 3000)

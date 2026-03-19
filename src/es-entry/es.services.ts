@@ -53,6 +53,20 @@ export class EsService {
         }
     }
 
+    async deleteIndices(indices: string[]) {
+        try {
+            const response = await this.esClient.indices.delete({
+                index: indices,
+                ignore_unavailable: true
+            })
+
+            return { status: true, message: "Indices deleted", data: response }
+        } catch (error) {
+            console.log(error)
+            return { status: false, message: (error as Error).message }
+        }
+    }
+
     async createDocument(index: string, document: TMichelinData) {
         try {
             const response = await this.esClient.index({
@@ -73,7 +87,12 @@ export class EsService {
                 return [{ index: { _index: index } }, doc]
             })
 
+            const response = await this.esClient.bulk({
+                operations,
+                refresh: true
+            })
 
+            return { status: true, message: "Documents bulk created", data: response }
         } catch (error) {
             console.log(error)
             return { status: false, message: (error as Error).message }
@@ -95,26 +114,54 @@ export class EsService {
         }
     }
 
-    async searchDocuments(index: string, value: string, field: string) {
+    async searchDocuments(index: string, value: string, field: string, sort?: { field: string, order: "asc" | "desc" }[], range?: { field: string, gte?: number, lte?: number }[]) {
         try {
+            const operations: Record<"range", { gte?: number, lte?: number }>[] = []
+            if (range && range.length > 0) {
+                range.forEach(rangeField => {
+                    if (rangeField.gte || rangeField.lte) {
+
+                        operations.push({
+                            range: {
+                                [rangeField.field]: {
+                                    ...(rangeField.gte && { gte: rangeField.gte }),
+                                    ...(rangeField.lte && { lte: rangeField.lte })
+                                }
+                            }
+                        })
+                    }
+                })
+            }
+
+            const mustBoolOperations = [{
+                match_phrase_prefix: {
+                    [field]: value
+                },
+            },]
+
+
             const response = await this.esClient.search({
                 index,
                 query: {
                     bool: {
-                        must: [
-                            {
-                                match_phrase_prefix: {
-                                    [field]: value
-                                }
-                            }
-                        ]
-                    }
-                }
+                        must: mustBoolOperations,
+                        ...(operations.length > 0 && { filter: operations })
+                    },
+                },
+                ...(sort && sort.length > 0 && {
+                    sort: sort.map(sortField => {
+                        return { [sortField.field]: sortField.order }
+                    })
+                })
             }, {
                 ignore: [404],
                 maxRetries: 3
             })
-            return { status: true, message: "Documents searched", data: response }
+
+            const sanitizedResponse = response?.hits?.hits?.map(hit => {
+                return { ...hit._source as {}, _id: hit._id, _score: hit._score }
+            }) || response
+            return { status: true, message: "Documents searched", data: sanitizedResponse }
         } catch (error) {
             console.log(error)
             return { status: false, message: (error as Error).message }

@@ -10,8 +10,10 @@ const esController = new EsController(new EsService(esClient))
 router.route("/create-index").post(esController.createIndex)
 router.route("/list-indices").get(esController.listIndices)
 router.route("/delete-index").delete(esController.deleteIndex)
+router.route("/delete-indices").delete(esController.deleteIndices)
 router.route("/create-document").post(esController.createDocument)
 router.route("/list-documents").get(esController.listDocuments)
 router.route("/search-documents").post(esController.searchDocuments)
+router.route("/bulk-insert").post(esController.bulkCreateDocuments)
 
 export default router

@@ -8,9 +8,11 @@ export class EsController {
         this.createIndex = this.createIndex.bind(this)
         this.listIndices = this.listIndices.bind(this)
         this.deleteIndex = this.deleteIndex.bind(this)
+        this.deleteIndices = this.deleteIndices.bind(this)
         this.createDocument = this.createDocument.bind(this)
         this.listDocuments = this.listDocuments.bind(this)
         this.searchDocuments = this.searchDocuments.bind(this)
+        this.bulkCreateDocuments = this.bulkCreateDocuments.bind(this)
     }
 
     async createIndex(req: Request, res: Response) {
@@ -51,6 +53,18 @@ export class EsController {
         }
     }
 
+    async deleteIndices(req: Request, res: Response) {
+        try {
+            const response = await this.esService.deleteIndices(req.body.indices)
+
+            return res.status(200).json(response)
+        } catch (error) {
+            return res.status(500).json({
+                status: false, message: (error as Error).message
+            })
+        }
+    }
+
     async createDocument(req: Request, res: Response) {
         try {
             const response = await this.esService.createDocument(req.body.index, req.body.document)
@@ -77,10 +91,23 @@ export class EsController {
 
     async searchDocuments(req: Request, res: Response) {
         try {
-            const response = await this.esService.searchDocuments(req.body.index, req.body.value, req.body.field)
+            const response = await this.esService.searchDocuments(req.body.index, req.body.value, req.body.field, req.body?.sort, req.body?.range)
 
             return res.status(200).json(response)
         } catch (error) {
+            return res.status(500).json({
+                status: false, message: (error as Error).message
+            })
+        }
+    }
+
+    async bulkCreateDocuments(req: Request, res: Response) {
+        try {
+            const response = await this.esService.bulkCreateDocument(req.body.index, req.body.documents)
+
+            return res.status(200).json(response)
+        } catch (error) {
+            console.log(error)
             return res.status(500).json({
                 status: false, message: (error as Error).message
             })
