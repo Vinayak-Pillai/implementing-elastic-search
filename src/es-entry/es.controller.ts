@@ -91,7 +91,7 @@ export class EsController {
 
     async searchDocuments(req: Request, res: Response) {
         try {
-            const response = await this.esService.searchDocuments(req.body.index, req.body.value, req.body.field, req.body?.sort, req.body?.range)
+            const response = await this.esService.searchDocuments(req.body.index, req.body.searchFields, req.body?.sort, req.body?.range, req.body?.mustNot)
 
             return res.status(200).json(response)
         } catch (error) {

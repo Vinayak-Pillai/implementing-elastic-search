@@ -114,9 +114,52 @@ export class EsService {
         }
     }
 
-    async searchDocuments(index: string, value: string, field: string, sort?: { field: string, order: "asc" | "desc" }[], range?: { field: string, gte?: number, lte?: number }[]) {
+
+    /*     code to pass as payload
+    {
+            "index": "michelin_v6",
+            "searchFields": [
+                {
+                    "field": "city",
+                    "value": "new "
+                }
+            ],
+            "mustNot": [
+                {
+                    "field": "cuisine",
+                    "value": "Contemporary"
+                },
+                {
+                    "field": "cuisine",
+                    "value": "Japanese"
+                }
+            ],
+            "sort": [
+                {
+                    "field": "star",
+                    "order": "asc"
+                },
+                {
+                    "field": "price",
+                    "order": "asc"
+                }
+            ],
+            "range": [
+                {
+                    "field": "star",
+                    "gte": 2
+                },
+                {
+                    "field": "price",
+                    "gte": 20
+                }
+            ]
+        } */
+
+
+    async searchDocuments(index: string, searchFields: { field: string, value: string }[], sort?: { field: string, order: "asc" | "desc" }[], range?: { field: string, gte?: number, lte?: number }[], mustNot?: { field: string, value: string }[]) {
         try {
-            const operations: Record<"range", { gte?: number, lte?: number }>[] = []
+            const operations: Record<string, any>[] = []
             if (range && range.length > 0) {
                 range.forEach(rangeField => {
                     if (rangeField.gte || rangeField.lte) {
@@ -133,26 +176,36 @@ export class EsService {
                 })
             }
 
-            const mustBoolOperations = [{
+            const mustBoolOperations = searchFields.map(searchField => ({
                 match_phrase_prefix: {
-                    [field]: value
+                    [searchField.field]: searchField.value,
                 },
-            },]
+            }))
 
+            const mustNotOperations = mustNot?.map(mn => {
+                return { match_phrase_prefix: { [mn.field]: mn.value } }
+            })
+
+            console.log(JSON.stringify({
+                must: mustBoolOperations,
+                ...(operations.length > 0 && { filter: operations }),
+                ...(mustNotOperations && mustNotOperations.length > 0 && { must_not: mustNotOperations })
+            }, null, 2))
 
             const response = await this.esClient.search({
                 index,
                 query: {
                     bool: {
                         must: mustBoolOperations,
-                        ...(operations.length > 0 && { filter: operations })
+                        ...(operations.length > 0 && { filter: operations }),
+                        ...(mustNotOperations && mustNotOperations.length > 0 && { must_not: mustNotOperations })
                     },
                 },
                 ...(sort && sort.length > 0 && {
                     sort: sort.map(sortField => {
                         return { [sortField.field]: sortField.order }
                     })
-                })
+                }),
             }, {
                 ignore: [404],
                 maxRetries: 3
